@@ -277,3 +277,6 @@ const addMovie = () => {
     
     <button onClick={addMovie}>Add Movie</button>
 </div>
+
+===========================================
+git clone https://github.com/lance-05/PELEC305-FINALS.git

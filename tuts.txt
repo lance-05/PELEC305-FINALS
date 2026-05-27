@@ -1,0 +1,279 @@
+npm create-react-app frontend
+cd frontend
+npm start
+
+#open App.js#
+function App() {
+    return (
+        <div>
+            <h1>Movie App</h1>
+        </div>
+    );
+}
+
+export default App;
+
+=========================================================
+import logo from './logo.svg';
+import './App.css';
+import { useEffect, useState } from 'react';
+
+function App() {
+  const [movies, setMovies] = useState([]);
+  const [title, setTitle] = useState("");
+
+  useEffect(() => {
+    fetch("http://127.0.0.1:8000/api/movies/")
+    .then(res => res.json())
+    .then(data => setMovies(data));
+  }, []);
+
+    const addMovie = () => {
+    fetch("http://127.0.0.1:8000/api/movies/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: title,
+        genre: "Action",
+        rating: 8,
+        is_recommended: true
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => console.log(data));
+    };
+
+    const deleteMovie = (id) => {
+    fetch(`http://127.0.0.1:8000/api/movies/${id}/`, {
+        method: "DELETE"
+    })
+    .then(() => {
+        setMovies(movies.filter(movie => movie.id !== id));
+    });
+    };
+
+    const recommendedMovies = movies.filter(
+    movie => movie.is_recommended === true
+    );
+
+    return (
+      <>
+      <h2> Recommended Movies</h2>
+
+        {recommendedMovies.length === 0 ? (
+            <p>No recommended movies yet.</p>
+        ) : (
+            recommendedMovies.map(movie => (
+                <div key={movie.id}>
+                    <h4>{movie.title}</h4>
+                    <p>{movie.genre} | {movie.rating}</p>
+                </div>
+            ))
+        )}
+        <hr />
+        <div>
+          <h1>Movie App</h1>
+
+          {movies.map(movie => (
+            <div key={movie.id}>
+              <h3>{movie.title}</h3>
+              <p>{movie.genre} - {movie.rating}</p>
+
+              <button onClick={() => deleteMovie(movie.id)}>Delete</button>
+              </div>
+            ))}
+        </div>
+        <div className='addMovie'>
+             <input 
+            type="text"
+            placeholder="Enter movie title..."
+            value={title}
+            onChange={(e) => setTitle(e.target.value)} 
+          />
+
+            <button onClick={addMovie}>Add Movie</button>
+        </div>
+      </>
+        
+    );
+}
+
+export default App;
+
+=========================================================
+python -m venv venv
+pip install django
+django-admin startproject backend
+cd backend
+
+python manage.py startapp api
+pip install djangorestframework django-cors-headers
+
+settings.py
+'rest_framework',
+'corsheaders',
+'api',
+
+'corsheaders.middleware.CorsMiddleware',
+
+CORS_ALLOW_ALL_ORIGINS = True
+
+======================================================
+models.py
+
+class Movie(models.Model):
+    title = models.CharField(max_length=100)
+    genre = models.CharField(max_length=50)
+    rating = models.FloatField()
+    is_recommended = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.title
+
+python manage.py makemigrations
+
+python manage.py migrate
+
+====================================================
+create in app a folder serializers.py
+app/serializers.py
+
+
+from rest_framework import serializers
+from .models import Movie
+
+class MovieSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Movie
+        fields = '__all__'
+
+======================================================
+views.py
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Movie
+from .serializers import MovieSerializer
+
+class MovieList(APIView):
+    
+    def get(self, request):
+        movies = Movie.objects.all()
+        serializer = MovieSerializer(movies, many=True)
+        return Response(serializer.data)
+        
+    def post(self, request):
+        serializer = MovieSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+
+class MovieDetail(APIView):
+    
+    def get_object(self, pk):
+        try:
+            return Movie.objects.get(pk=pk)
+        except Movie.DoesNotExist:
+            return None
+            
+    def get(self, request, pk):
+        movie = self.get_object(pk)
+        if not movie:
+            return Response({"error": "Not found"}, status=404)
+            
+        serializer = MovieSerializer(movie)
+        return Response(serializer.data)
+        
+    def put(self, request, pk):
+        movie = self.get_object(pk)
+        if not movie:
+            return Response({"error": "Not found"}, status=404)
+            
+        serializer = MovieSerializer(movie, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+            
+        return Response(serializer.errors)
+        
+    def delete(self, request, pk):
+        movie = self.get_object(pk)
+        if not movie:
+            return Response({"error": "Not found"}, status=404)
+            
+        movie.delete()
+        return Response({"message": "Deleted"})
+
+===================================================================
+create a file urls.py in app(api)
+
+from django.urls import path
+from .views import MovieList, MovieDetail
+
+urlpatterns = [
+    path('movies/', MovieList.as_view()),
+    path('movies/<int:pk>/', MovieDetail.as_view()),
+]
+==================================================================
+urls.py project 
+
+from django.contrib import admin
+from django.urls import path, include
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('api/', include('api.urls')),
+]
+
+python manage.py runserver
+
+api/movies/
+=====================================================================
+
+const [title, setTitle] = useState("");
+const [genre, setGenre] = useState(""); // <-- Add this line
+
+const addMovie = () => {
+  fetch("http://127.0.0.1:8000/api/movies/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      title: title,
+      genre: genre, // <-- Change "Action" to your state variable 'genre'
+      rating: 8,
+      is_recommended: true
+    }),
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      setMovies([...movies, data]);
+      setTitle(""); // Clear title input
+      setGenre(""); // <-- Add this to clear the genre input field after adding
+    });
+};
+
+
+<div className='addMovie'>
+    <h3>Add a New Movie</h3>
+    
+    {/* Title Input */}
+    <input 
+      type="text"
+      placeholder="Enter movie title..."
+      value={title}
+      onChange={(e) => setTitle(e.target.value)} 
+    />
+
+    {/* Genre Input */}
+    <input 
+      type="text"
+      placeholder="Enter movie genre (e.g., Sci-Fi, Comedy)..."
+      value={genre}
+      onChange={(e) => setGenre(e.target.value)} // <-- Updates the genre state
+    />
+    
+    <button onClick={addMovie}>Add Movie</button>
+</div>
